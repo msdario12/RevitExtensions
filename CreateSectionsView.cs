@@ -41,12 +41,14 @@ namespace RevitExtensions
                     ElementId elementId = column.GetTypeId();
                     ElementType type = doc.GetElement(elementId) as ElementType;
 
+                    String numeration = column.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS).AsString();
                     String familiy_name = type.FamilyName;
                     String type_name = type.Name;
-                    String key_name = $"{familiy_name}_{type_name}";
+                    String key_name = $"{numeration}_{familiy_name}_{type_name}";
 
                     // Only last element with stay in the dict.
-                    dict_columns[key_name] = column;
+                    //dict_columns[key_name] = column;
+                    dict_columns.Add(key_name, column);
                 }
 
                 // 💻 Create sections
@@ -96,6 +98,9 @@ namespace RevitExtensions
                     //6 Create sections view.
                     ElementId sectionTypeId = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection);
                     ViewSection sectionView = ViewSection.CreateSection(doc, sectionTypeId, sectionBox);
+                    // Fine detail level
+                    sectionView.DetailLevel = ViewDetailLevel.Fine;
+                    sectionView.Scale = 50;
 
                     string viewName = $"API_{columnTuple.Key}";
                     for (int i = 0; i < 10; i++)
