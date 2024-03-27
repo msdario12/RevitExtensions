@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>RevitExtensions</Name>
+		<Assembly>RevitExtensions.dll</Assembly>
+		<FullClassName>RevitExtensions.App</FullClassName>
+		<AddInId>F6887A42-A4F1-4575-9BA3-9F2A8490A438</AddInId>
+		<VendorId>Dario Ignacio Mansilla</VendorId>
+		<VendorDescription>https://github.com/msdario12</VendorDescription>
+	</AddIn>
+</RevitAddIns>

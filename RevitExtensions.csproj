@@ -31,6 +31,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="PresentationCore" />
     <Reference Include="RevitAPI">
       <HintPath>C:\Program Files\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
       <Private>False</Private>
@@ -49,9 +50,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="App.cs" />
+    <Compile Include="ModifyColumns.cs" />
     <Compile Include="CreateSectionsView.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\icon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RevitExtensions.addin" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>Copy "$(TargetDir)RevitExtensions.dll" "$(AppData)\Autodesk\Revit\Addins\2024"
+  
+if exist "$(AppData)\Autodesk\REVIT\Addins\2024" copy "$(ProjectDir)*.addin" "$(AppData)\Autodesk\REVIT\Addins\2024"
+if exist "$(AppData)\Autodesk\REVIT\Addins\2024\Resources" copy "$(ProjectDir)\Resources\icon.ico" "$(AppData)\Autodesk\REVIT\Addins\2024\Resources"</PostBuildEvent>
+  </PropertyGroup>
 </Project>
