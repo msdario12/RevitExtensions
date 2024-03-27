@@ -23,7 +23,7 @@ namespace RevitExtensions
             try
             {
                 // Run application
-                TaskDialog.Show("Inicio de Crear Vistas", "Solo una prueba");
+                TaskDialog.Show("Inicio de Crear Vistas REVIT", "Usando Ribbon de Revit");
 
                 // 💻 Get all elements (columns) instances of each type.
                 IList<Element> columns = new FilteredElementCollector(doc).
