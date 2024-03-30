@@ -24,32 +24,8 @@ namespace RevitExtensions
             {
                 // Run application
                 TaskDialog.Show("Inicio de Crear Vistas REVIT", "Usando Ribbon de Revit");
-
-                // 💻 Get all elements (columns) instances of each type.
-                IList<Element> columns = new FilteredElementCollector(doc).
-                    OfCategory(BuiltInCategory.OST_StructuralColumns).
-                    WhereElementIsNotElementType().
-                    ToElements();
-
-                // TODO: redefine types in dict.
-                Dictionary<string, Element> dict_columns = new Dictionary<string, Element>();
-
-                transaction.Start();
-
-                foreach (var column in columns)
-                {
-                    ElementId elementId = column.GetTypeId();
-                    ElementType type = doc.GetElement(elementId) as ElementType;
-
-                    String numeration = column.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS).AsString();
-                    String familiy_name = type.FamilyName;
-                    String type_name = type.Name;
-                    String key_name = $"{numeration}_{familiy_name}_{type_name}";
-
-                    // Only last element with stay in the dict.
-                    //dict_columns[key_name] = column;
-                    dict_columns.Add(key_name, column);
-                }
+                // Get filtered elements by category
+                Dictionary<string, Element> dict_columns = getElementsBasedInCategory(doc, transaction);
 
                 // 💻 Create sections
                 foreach (KeyValuePair<string, Element> columnTuple in dict_columns)
@@ -127,6 +103,36 @@ namespace RevitExtensions
                 transaction.RollBack();
                 return Autodesk.Revit.UI.Result.Failed;
             }
+        }
+
+        private static Dictionary<string, Element> getElementsBasedInCategory(Document doc, Transaction transaction)
+        {
+            // 💻 Get all elements (columns) instances of each type.
+            IList<Element> columns = new FilteredElementCollector(doc).
+                OfCategory(BuiltInCategory.OST_StructuralColumns).
+                WhereElementIsNotElementType().
+                ToElements();
+
+            Dictionary<string, Element> dict_columns = new Dictionary<string, Element>();
+
+            transaction.Start();
+
+            foreach (var column in columns)
+            {
+                ElementId elementId = column.GetTypeId();
+                ElementType type = doc.GetElement(elementId) as ElementType;
+
+                String numeration = column.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS).AsString();
+                String familiy_name = type.FamilyName;
+                String type_name = type.Name;
+                String key_name = $"{numeration}_{familiy_name}_{type_name}";
+
+                // Only last element with stay in the dict.
+                //dict_columns[key_name] = column;
+                dict_columns.Add(key_name, column);
+            }
+
+            return dict_columns;
         }
     }
 }

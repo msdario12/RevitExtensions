@@ -10,6 +10,12 @@
         <StackPanel>
             <Label Content="Crear vistas de elementos" Foreground="DarkGreen" FontFamily="Monolisa" FontWeight="Bold"/>
             <Label Content="Selecciona los elementos a seleccionar" />
+            <ListBox>
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox IsChecked="True" Margin="10 0"/>
+                    <TextBlock Text="Prueba"/>
+                </StackPanel> 
+            </ListBox>
             <StackPanel Orientation="Horizontal">
                 <Label Content="test"/>
                 <SelectiveScrollingGrid />
