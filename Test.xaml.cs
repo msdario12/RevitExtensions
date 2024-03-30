@@ -16,11 +16,11 @@ using System.Windows.Shapes;
 namespace RevitExtensions
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for Test.xaml
     /// </summary>
-    public partial class MainWindowRevit : Window
+    public partial class Test : UserControl
     {
-        public MainWindowRevit()
+        public Test()
         {
             InitializeComponent();
         }

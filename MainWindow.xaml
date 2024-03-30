@@ -1,4 +1,4 @@
-﻿<Window x:Class="RevitExtensions.MainWindow"
+﻿<Window x:Class="RevitExtensions.MainWindowRevit"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -8,7 +8,7 @@
              Height="auto" Width="300" ResizeMode="NoResize" SizeToContent="Height" Title="Revit Extensions Window">
     <Border Padding="20">
         <StackPanel>
-            <Label Content="Crear vistas de elementos" Foreground="DarkGreen" FontFamily="Monolisa" FontWeight="Bold"/>
+            <Label Content="Crear vispartialtas de elementos" Foreground="DarkGreen" FontFamily="Monolisa" FontWeight="Bold"/>
             <Label Content="Selecciona los elementos a seleccionar" />
             <ListBox>
                 <StackPanel Orientation="Horizontal">
