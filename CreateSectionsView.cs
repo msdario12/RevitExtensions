@@ -49,33 +49,22 @@ namespace RevitExtensions
                 return Autodesk.Revit.UI.Result.Failed;
             }
         }
-
         private static void createViewsBasedInElementCollection(Document doc, Dictionary<string, Element> dict_columns)
         {
             // 💻 Create sections
             foreach (KeyValuePair<string, Element> columnTuple in dict_columns)
             {
-                XYZ column_origin;
+                BoundingBoxXYZ boundingBox = columnTuple.Value.get_BoundingBox(null);
+
                 // Get origin of element
-                try
-                {
-                    column_origin = (columnTuple.Value.Location as LocationPoint).Point;
-                }
-                catch (Exception e)
-                {
+                XYZ column_origin = GetCenterBasedInBoundingBox(boundingBox);
 
-                    column_origin = ((columnTuple.Value.Location as LocationCurve).Curve as Line).Origin;
-                }
-
-                // Calculate vector based in host
-                // In case of column use FacingOrientation
-                XYZ faceOrientation = (columnTuple.Value as FamilyInstance).FacingOrientation;
+                XYZ faceOrientation = (columnTuple.Value as FamilyInstance).HandOrientation;
                 XYZ vector = faceOrientation;
                 // Get element size
                 ElementId elementId = columnTuple.Value.GetTypeId();
                 ElementType type = doc.GetElement(elementId) as ElementType;
 
-                BoundingBoxXYZ boundingBox = columnTuple.Value.get_BoundingBox(null);
                 // Width based in parameter
                 //double elementWidth = type.GetParameters("b").First().AsDouble();
                 double elementWidth = boundingBox.Max.X - boundingBox.Min.X;
@@ -100,8 +89,8 @@ namespace RevitExtensions
                 BoundingBoxXYZ sectionBox = new BoundingBoxXYZ();
                 double half = elementWidth / 2;
 
-                sectionBox.Min = new XYZ(-half - offset, 0 - offset, -elementDepth);
-                sectionBox.Max = new XYZ(+half + offset, elementHeight + offset, elementDepth);
+                sectionBox.Min = new XYZ(-half - offset, 0 - elementHeight / 2 - offset, -elementDepth);
+                sectionBox.Max = new XYZ(+half + offset, elementHeight / 2 + offset, elementDepth);
                 // Apply transforms to section box
                 sectionBox.Transform = transformIdentity;
 
@@ -127,8 +116,39 @@ namespace RevitExtensions
                 }
             }
         }
+        public static XYZ GetCenterBasedInBoundingBox(BoundingBoxXYZ boundingBox)
+        {
+            // Obtener los puntos mínimo y máximo del BoundingBox
+            XYZ minPoint = boundingBox.Min;
+            XYZ maxPoint = boundingBox.Max;
 
-        private static Dictionary<string, Element> GetElementsBasedInCategory(Document doc,  BuiltInCategory category)
+            // Calcular el centro como el promedio de los puntos mínimo y máximo
+            double centerX = (minPoint.X + maxPoint.X) / 2;
+            double centerY = (minPoint.Y + maxPoint.Y) / 2;
+            double centerZ = (minPoint.Z + maxPoint.Z) / 2;
+
+            // Crear y devolver el centro como un objeto XYZ
+            XYZ center = new XYZ(centerX, centerY, centerZ);
+            return center;
+        }
+        public static XYZ GetCenterOfBeam(Curve curve)
+        {
+            // Obtener los puntos finales de la curva
+            XYZ startPoint = curve.GetEndPoint(0);
+            XYZ endPoint = curve.GetEndPoint(1);
+
+            // Calcular el punto medio entre los puntos finales
+            double centerX = (startPoint.X + endPoint.X) / 2;
+            double centerY = startPoint.Y;
+            double centerZ = (startPoint.Z + endPoint.Z) / 2;
+
+            // Crear y devolver el punto medio como un objeto XYZ
+            XYZ center = new XYZ(centerX, centerY, centerZ);
+            return center;
+        }
+
+
+        private static Dictionary<string, Element> GetElementsBasedInCategory(Document doc, BuiltInCategory category)
         {
             // 💻 Get all elements (columns) instances of each type.
             IList<Element> columns = new FilteredElementCollector(doc).
