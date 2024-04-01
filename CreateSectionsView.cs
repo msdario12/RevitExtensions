@@ -25,18 +25,21 @@ namespace RevitExtensions
                 // Run application
                 TaskDialog.Show("Inicio de Crear Vistas REVIT", "Usando Ribbon de Revit");
 
-                var listOfCategories = new List<BuiltInCategory>();
-                listOfCategories.Add(BuiltInCategory.OST_StructuralFraming);
-                listOfCategories.Add(BuiltInCategory.OST_StructuralColumns);
-                listOfCategories.Add(BuiltInCategory.OST_StructuralFoundation);
+                var listOfCategories = new List<BuiltInCategory>
+                {
+                    BuiltInCategory.OST_StructuralFraming,
+                    BuiltInCategory.OST_StructuralColumns,
+                    BuiltInCategory.OST_StructuralFoundation
+                };
 
                 transaction.Start();
-                foreach (var category in listOfCategories)
-                {
-                    // Get filtered elements by category
-                    Dictionary<string, Element> dict_columns = GetElementsBasedInCategory(doc, category); // Create views
-                    createViewsBasedInElementCollection(doc, dict_columns);
-                }
+                //foreach (var category in listOfCategories)
+                //{
+                //    // Get filtered elements by category
+                //    Dictionary<string, Element> dict_columns = GetElementsBasedInCategory(doc, category); // Create views
+                //    createViewsBasedInElementCollection(doc, dict_columns);
+                //}
+                FindConnectedBeams(doc);
                 transaction.Commit();
                 return Autodesk.Revit.UI.Result.Succeeded;
 
@@ -49,6 +52,85 @@ namespace RevitExtensions
                 return Autodesk.Revit.UI.Result.Failed;
             }
         }
+
+        public Dictionary<int, Element> FindConnectedBeams(Document doc)
+        {
+            Dictionary<int, Element> connectedBeamGroups = new Dictionary<int, Element>();
+
+            // Recopilar todas las vigas del modelo
+            FilteredElementCollector beamCollector = new FilteredElementCollector(doc);
+            ICollection<Element> beams = beamCollector.OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().ToElements();
+
+            int groupId = 1;
+
+            foreach (Element beam in beams)
+            {
+                bool grouped = false;
+
+                // Obtener el BoundingBox de la viga actual
+                BoundingBoxXYZ beamBoundingBox = beam.get_BoundingBox(null);
+
+                foreach (Element insideBeam in beams)
+                {
+                    if (beam == insideBeam)
+                    {
+                        continue;
+                    }
+
+                    // Obtener el BoundingBox de la viga actual
+                    BoundingBoxXYZ beamBoundingBoxInside = insideBeam.get_BoundingBox(null);
+
+                    // Verificar si el BoundingBox de la viga actual se intersecta con el BoundingBox del grupo
+                    Outline outline = new Outline(beamBoundingBoxInside.Min, beamBoundingBoxInside.Max);
+
+                    BoundingBoxIntersectsFilter bbfilter = new BoundingBoxIntersectsFilter(outline);
+
+                    // Use a view to construct the filter so we 
+                    // get only visible elements. For example, 
+                    // the analytical model will be found otherwise.
+
+                    FilteredElementCollector collector = new FilteredElementCollector(doc, doc.ActiveView.Id);
+
+                    // Lets also exclude the view itself (which 
+                    // often will have an intersecting bounding box), 
+                    // and also the element selected.
+
+                    List<Element> filteredCollector = collector.WherePasses(bbfilter).OfCategory(BuiltInCategory.OST_StructuralFraming).ToList();
+                    //bool isIn;
+
+                    foreach (var item in filteredCollector)
+                    {
+                        if (item.Id == beam.Id)
+                        {
+                            connectedBeamGroups.Add(groupId, beam);
+                            groupId++;
+                        }
+                    }
+
+                    //if (isIn)
+                    //{
+                    //    // Agregar la viga al grupo existente
+                    //    //kvp.Value.Item2.Add(beam);
+                    //    //grouped = true;
+                    //    //break;
+                    //}
+
+
+                }
+
+
+                //if (!grouped)
+                //{
+                //    // Si la viga no pertenece a ningún grupo existente, crear un nuevo grupo
+                //    connectedBeamGroups.Add(groupId, beam);
+                //    groupId++;
+                //}
+            }
+
+            return connectedBeamGroups;
+        }
+
+
         private static void createViewsBasedInElementCollection(Document doc, Dictionary<string, Element> dict_columns)
         {
             // 💻 Create sections
