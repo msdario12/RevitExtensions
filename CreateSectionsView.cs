@@ -36,12 +36,15 @@ namespace RevitExtensions
                 //foreach (var category in listOfCategories)
                 //{
                 //    // Get filtered elements by category
-                //    Dictionary<string, Element> dict_columns = GetElementsBasedInCategory(doc, category); // Create views
+                //    Dictionary<string, (BoundingBoxXYZ, XYZ)> dict_columns = GetElementsBasedInCategory(doc, category); // Create views
                 //    createViewsBasedInElementCollection(doc, dict_columns);
                 //}
-                FindConnectedBeams(doc);
+
+                Dictionary<string, (BoundingBoxXYZ, XYZ)> beamGroups = FindConnectedBeams(doc);
+                createViewsBasedInElementCollection(doc, beamGroups);
+
                 transaction.Commit();
-                return Autodesk.Revit.UI.Result.Succeeded;
+                return Result.Succeeded;
 
             }
             catch (Exception e)
@@ -53,15 +56,17 @@ namespace RevitExtensions
             }
         }
 
-        public Dictionary<int, Element> FindConnectedBeams(Document doc)
+        public Dictionary<String, (BoundingBoxXYZ, XYZ)> FindConnectedBeams(Document doc)
         {
-            Dictionary<int, Element> connectedBeamGroups = new Dictionary<int, Element>();
+            Dictionary<String, (BoundingBoxXYZ, XYZ)> connectedBeamGroups = new Dictionary<String, (BoundingBoxXYZ, XYZ)>();
 
             // Recopilar todas las vigas del modelo
             FilteredElementCollector beamCollector = new FilteredElementCollector(doc);
             ICollection<Element> beams = beamCollector.OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().ToElements();
 
             int groupId = 1;
+
+            var collectedElementoCollector = new CollectedElementsCollector();
 
             foreach (Element beam in beams)
             {
@@ -102,11 +107,14 @@ namespace RevitExtensions
                     {
                         if (item.Id == beam.Id)
                         {
-                            connectedBeamGroups.Add(groupId, beam);
+                            //connectedBeamGroups.Add(beam.Id.ToString(), (beamBoundingBox, (beam as FamilyInstance).HandOrientation));
+                            collectedElementoCollector.AddConnection(beam, insideBeam);
                             groupId++;
+                            break;
                         }
                     }
 
+                    var key = $"Portico_{groupId}";
                     //if (isIn)
                     //{
                     //    // Agregar la viga al grupo existente
@@ -127,63 +135,41 @@ namespace RevitExtensions
                 //}
             }
 
+            List<List<Element>> connectedElements = collectedElementoCollector.FindConnectedComponents();
+            foreach (var list in connectedElements)
+            {
+                var groupBoundingBox = collectedElementoCollector.CalculateBoundingBox(list);
+
+                XYZ facingVector = (list[0] as FamilyInstance).HandOrientation;
+
+                connectedBeamGroups.Add(list[0].Id.ToString(), (groupBoundingBox,facingVector));
+            }
             return connectedBeamGroups;
         }
 
 
-        private static void createViewsBasedInElementCollection(Document doc, Dictionary<string, Element> dict_columns)
+        private static void createViewsBasedInElementCollection(Document doc, Dictionary<string, (BoundingBoxXYZ, XYZ)> boundingBoxDict)
         {
             // 💻 Create sections
-            foreach (KeyValuePair<string, Element> columnTuple in dict_columns)
+            foreach (KeyValuePair<string, (BoundingBoxXYZ, XYZ)> keyValue in boundingBoxDict)
             {
-                BoundingBoxXYZ boundingBox = columnTuple.Value.get_BoundingBox(null);
+                BoundingBoxXYZ boundingBox = keyValue.Value.Item1;
 
-                // Get origin of element
-                XYZ column_origin = GetCenterBasedInBoundingBox(boundingBox);
-
-                XYZ faceOrientation = (columnTuple.Value as FamilyInstance).HandOrientation;
-                XYZ vector = faceOrientation;
-                // Get element size
-                ElementId elementId = columnTuple.Value.GetTypeId();
-                ElementType type = doc.GetElement(elementId) as ElementType;
-
-                // Width based in parameter
-                //double elementWidth = type.GetParameters("b").First().AsDouble();
-                double elementWidth = boundingBox.Max.X - boundingBox.Min.X;
-                // Height based in bounding box
-                double elementHeight = boundingBox.Max.Z - boundingBox.Min.Z;
-                // Video en 9:22
-                double elementDepth = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters);
-                double offset = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters);
-
-                //4 Create Transform (Origin Point + X,Y,Z vectors)
-                Transform transformIdentity = Transform.Identity;
-                transformIdentity.Origin = column_origin;
-
-                // Normalize vectors
-                vector = vector.Normalize();
-
-                transformIdentity.BasisX = vector;
-                transformIdentity.BasisY = XYZ.BasisZ;
-                transformIdentity.BasisZ = vector.CrossProduct(XYZ.BasisZ);
-
-                // Create new boundary box
-                BoundingBoxXYZ sectionBox = new BoundingBoxXYZ();
-                double half = elementWidth / 2;
-
-                sectionBox.Min = new XYZ(-half - offset, 0 - elementHeight / 2 - offset, -elementDepth);
-                sectionBox.Max = new XYZ(+half + offset, elementHeight / 2 + offset, elementDepth);
-                // Apply transforms to section box
-                sectionBox.Transform = transformIdentity;
+                BoundingBoxXYZ sectionBox = CreateSectionBoxBasedInBoundaryBox(boundingBox, keyValue.Value.Item2);
 
                 //6 Create sections view.
                 ElementId sectionTypeId = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection);
                 ViewSection sectionView = ViewSection.CreateSection(doc, sectionTypeId, sectionBox);
+
                 // Fine detail level
                 sectionView.DetailLevel = ViewDetailLevel.Fine;
                 sectionView.Scale = 50;
 
-                string viewName = $"API_{type.FamilyName}_{columnTuple.Key}";
+                //ElementId elementId = columnTuple.Value.GetTypeId();
+                //ElementType type = doc.GetElement(elementId) as ElementType;
+
+                //string viewName = $"API_{type.FamilyName}_{columnTuple.Key}";
+                string viewName = keyValue.Key;
                 for (int i = 0; i < 10; i++)
                 {
                     try
@@ -198,6 +184,72 @@ namespace RevitExtensions
                 }
             }
         }
+        public static XYZ GetPerpendicularVectorToLargestFace(BoundingBoxXYZ boundingBox)
+        {
+            // Calcular las dimensiones de cada cara del BoundingBox
+            double lengthX = boundingBox.Max.X - boundingBox.Min.X;
+            double lengthY = boundingBox.Max.Y - boundingBox.Min.Y;
+            double lengthZ = boundingBox.Max.Z - boundingBox.Min.Z;
+
+            // Determinar la mayor dimensión y la cara correspondiente
+            if (lengthX >= lengthY && lengthX >= lengthZ)
+            {
+                // La cara de mayor dimensión es en el eje X
+                return new XYZ(lengthX, 0, 0); // Vector paralelo al eje X
+            }
+            else if (lengthY >= lengthX && lengthY >= lengthZ)
+            {
+                // La cara de mayor dimensión es en el eje Y
+                return new XYZ(0, lengthY, 0); // Vector paralelo al eje Y
+            }
+            else
+            {
+                // La cara de mayor dimensión es en el eje Z
+                return new XYZ(0, 0, lengthZ); // Vector paralelo al eje Z
+            }
+        }
+
+        private static BoundingBoxXYZ CreateSectionBoxBasedInBoundaryBox(BoundingBoxXYZ boundingBox, XYZ vector)
+        {
+            // Get origin of element
+            XYZ column_origin = GetCenterBasedInBoundingBox(boundingBox);
+            // Get vector
+            //XYZ vector = GetPerpendicularVectorToLargestFace(boundingBox);
+            //XYZ vector = new XYZ(boundingBox.Max.X, boundingBox.Min.Y, boundingBox.Max.Z) - new XYZ(boundingBox.Max.X,boundingBox.Min.Y,boundingBox.Min.Z) ;
+            //XYZ vector = boundingBox.Min - new XYZ(boundingBox.Max.X, boundingBox.Min.Y, boundingBox.Min.Z);
+            // Get element size
+
+            // Width based in parameter
+            //double elementWidth = type.GetParameters("b").First().AsDouble();
+            double elementWidth = boundingBox.Max.X - boundingBox.Min.X;
+            // Height based in bounding box
+            double elementHeight = boundingBox.Max.Z - boundingBox.Min.Z;
+            // Video en 9:22
+            double elementDepth = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters);
+            double offset = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters);
+
+            //4 Create Transform (Origin Point + X,Y,Z vectors)
+            Transform transformIdentity = Transform.Identity;
+            transformIdentity.Origin = column_origin;
+
+            // Normalize vectors
+            vector = vector.Normalize();
+
+            transformIdentity.BasisX = vector;
+            transformIdentity.BasisY = XYZ.BasisZ;
+            transformIdentity.BasisZ = vector.CrossProduct(XYZ.BasisZ);
+
+            // Create new boundary box
+            BoundingBoxXYZ sectionBox = new BoundingBoxXYZ();
+            double half = elementWidth / 2;
+
+            sectionBox.Min = new XYZ(-half - offset, 0 - elementHeight / 2 - offset, -elementDepth);
+            sectionBox.Max = new XYZ(+half + offset, elementHeight / 2 + offset, elementDepth);
+            // Apply transforms to section box
+            sectionBox.Transform = transformIdentity;
+            return sectionBox;
+        }
+
         public static XYZ GetCenterBasedInBoundingBox(BoundingBoxXYZ boundingBox)
         {
             // Obtener los puntos mínimo y máximo del BoundingBox
@@ -230,7 +282,7 @@ namespace RevitExtensions
         }
 
 
-        private static Dictionary<string, Element> GetElementsBasedInCategory(Document doc, BuiltInCategory category)
+        private static Dictionary<string, (BoundingBoxXYZ, XYZ)> GetElementsBasedInCategory(Document doc, BuiltInCategory category)
         {
             // 💻 Get all elements (columns) instances of each type.
             IList<Element> columns = new FilteredElementCollector(doc).
@@ -238,23 +290,27 @@ namespace RevitExtensions
                 WhereElementIsNotElementType().
                 ToElements();
 
-            Dictionary<string, Element> dict_columns = new Dictionary<string, Element>();
+            Dictionary<string, (BoundingBoxXYZ, XYZ)> dict_columns = new Dictionary<string, (BoundingBoxXYZ, XYZ)>();
 
             int counter = 0;
             foreach (var column in columns)
             {
                 ElementId elementId = column.GetTypeId();
                 ElementType type = doc.GetElement(elementId) as ElementType;
+
                 counter++;
                 //String numeration = column.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS).AsString();
                 string numeration = counter.ToString();
                 String familiy_name = type.FamilyName;
                 String type_name = type.Name;
+
                 String key_name = $"{numeration}_{familiy_name}_{type_name}";
 
                 // Only last element with stay in the dict.
                 //dict_columns[key_name] = column;
-                dict_columns.Add(key_name, column);
+
+                XYZ vectorHost = (column as FamilyInstance).HandOrientation;
+                dict_columns.Add(key_name, (column.get_BoundingBox(null), vectorHost));
             }
 
             return dict_columns;
