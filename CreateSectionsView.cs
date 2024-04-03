@@ -77,10 +77,10 @@ namespace RevitExtensions
 
                 foreach (Element insideBeam in beams)
                 {
-                    if (beam == insideBeam)
-                    {
-                        continue;
-                    }
+                    //if (beam == insideBeam)
+                    //{
+                    //    continue;
+                    //}
 
                     // Obtener el BoundingBox de la viga actual
                     BoundingBoxXYZ beamBoundingBoxInside = insideBeam.get_BoundingBox(null);
@@ -105,7 +105,12 @@ namespace RevitExtensions
 
                     foreach (var item in filteredCollector)
                     {
-                        if (item.Id == beam.Id)
+                        XYZ beamOrientation = (beam as FamilyInstance).HandOrientation.Normalize();
+                        XYZ insideBeamOrientation = (insideBeam as FamilyInstance).HandOrientation.Normalize();
+
+                        bool isSameDirection = VectorComparer.AreVectorsInSameDirection(beamOrientation, insideBeamOrientation, 0.05);
+
+                        if (item.Id == beam.Id && isSameDirection)
                         {
                             //connectedBeamGroups.Add(beam.Id.ToString(), (beamBoundingBox, (beam as FamilyInstance).HandOrientation));
                             collectedElementoCollector.AddConnection(beam, insideBeam);

@@ -64,6 +64,7 @@
     <Compile Include="Test.xaml.cs">
       <DependentUpon>Test.xaml</DependentUpon>
     </Compile>
+    <Compile Include="VectorComparer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\icon.ico" />
