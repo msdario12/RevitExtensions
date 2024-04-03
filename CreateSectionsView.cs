@@ -77,9 +77,9 @@ namespace RevitExtensions
 
                 foreach (Element insideBeam in beams)
                 {
-                    //if (beam == insideBeam)
+                    //if (beam.Id == insideBeam.Id)
                     //{
-                    //    continue;
+                    //    break;
                     //}
 
                     // Obtener el BoundingBox de la viga actual
@@ -119,35 +119,26 @@ namespace RevitExtensions
                         }
                     }
 
-                    var key = $"Portico_{groupId}";
-                    //if (isIn)
-                    //{
-                    //    // Agregar la viga al grupo existente
-                    //    //kvp.Value.Item2.Add(beam);
-                    //    //grouped = true;
-                    //    //break;
-                    //}
-
-
                 }
-
-
-                //if (!grouped)
-                //{
-                //    // Si la viga no pertenece a ningún grupo existente, crear un nuevo grupo
-                //    connectedBeamGroups.Add(groupId, beam);
-                //    groupId++;
-                //}
             }
 
             List<List<Element>> connectedElements = collectedElementoCollector.FindConnectedComponents();
             foreach (var list in connectedElements)
             {
-                var groupBoundingBox = collectedElementoCollector.CalculateBoundingBox(list);
+                string key = $"Portico_{groupId}";
+                BoundingBoxXYZ groupBoundingBox;
+                if (list.Count == 1)
+                {
+                    groupBoundingBox = list[0].get_BoundingBox(null);
+                }
+                else
+                {
+                    groupBoundingBox = collectedElementoCollector.CalculateBoundingBox(list);
+                }
 
                 XYZ facingVector = (list[0] as FamilyInstance).HandOrientation;
 
-                connectedBeamGroups.Add(list[0].Id.ToString(), (groupBoundingBox,facingVector));
+                connectedBeamGroups.Add(list[0].Id.ToString(), (groupBoundingBox, facingVector));
             }
             return connectedBeamGroups;
         }
