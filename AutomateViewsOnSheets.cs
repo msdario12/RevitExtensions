@@ -27,10 +27,8 @@ namespace RevitExtensions
 
             var viewsToPlace = allViews.Where(view => view.Name.Contains("API_"));
 
-
             // Desired Dict Structure
             // dictViews = {'VIEW_NAME' : {'Plan': null, 'Elevation': null, 'Cross': null}}
-
 
             // Sort Views for Placing on Sheets
             var dictViews = new Dictionary<string, WindowView>();
@@ -70,15 +68,15 @@ namespace RevitExtensions
                 using (Transaction trans = new Transaction(doc, "Create Window Sheets"))
                 {
                     trans.Start();
-                    foreach (var kvp in dictViews)
+                    foreach (KeyValuePair<string, WindowView> kvp in dictViews)
                     {
-                        var winName = kvp.Key;
-                        var windowViews = kvp.Value;
+                        string winName = kvp.Key;
+                        WindowView windowViews = kvp.Value;
 
                         // Get Plan/Cross/Elevation Views
-                        var plan = windowViews.Plan;
-                        var elev = windowViews.Elevation;
-                        var cros = windowViews.Cross;
+                        View plan = windowViews.Plan;
+                        View elev = windowViews.Elevation;
+                        View cros = windowViews.Cross;
 
                         // Handle Errors during view placement (SubTransaction)
                         using (SubTransaction st = new SubTransaction(doc))
@@ -86,36 +84,33 @@ namespace RevitExtensions
                             st.Start();
 
                             // Create new ViewSheet
-                            var newSheet = ViewSheet.Create(doc, defaultTitleBlockId);
+                            ViewSheet newSheet = ViewSheet.Create(doc, defaultTitleBlockId);
 
                             // Check if possible to place views
-                            if (cros != null &&
-                                Viewport.CanAddViewToSheet(doc, newSheet.Id, cros.Id))
+                            if (cros != null && Viewport.CanAddViewToSheet(doc, newSheet.Id, cros.Id))
                             {
                                 st.Commit();
 
                                 // Define position for placing views
                                 var ptPlan = new XYZ(-0.4, 0.3, 0);
-                                var ptCros = new XYZ(-0.15, 0.75, 0);
+                                var ptCros = new XYZ(0, 0, 0);
                                 var ptElev = new XYZ(-0.4, 0.75, 0);
 
                                 // Place Views on Sheets
                                 //Viewport.Create(doc, newSheet.Id, plan.Id, ptPlan);
                                 Viewport.Create(doc, newSheet.Id, cros.Id, ptCros);
                                 //Viewport.Create(doc, newSheet.Id, elev.Id, ptElev);
-                                TaskDialog.Show("Success", $"Created New Sheet for Window: {winName}");
 
                                 // Rename Sheets
                                 try
                                 {
-                                    newSheet.SheetNumber = $"Window - {winName}";
+                                    newSheet.SheetNumber = $"Window-{winName}";
                                     newSheet.Name = "";
                                 }
                                 catch { }
                             }
                             else
                             {
-                                st.RollBack();
                                 TaskDialog.Show("Error", $"The following window sections already placed or missing views: {winName}");
                                 continue;
                             }

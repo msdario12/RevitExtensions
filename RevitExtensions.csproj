@@ -66,6 +66,7 @@
       <DependentUpon>Test.xaml</DependentUpon>
     </Compile>
     <Compile Include="VectorComparer.cs" />
+    <Compile Include="ViewPlacer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\icon.ico" />
