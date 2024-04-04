@@ -27,7 +27,6 @@ namespace RevitExtensions
 
                 var listOfCategories = new List<BuiltInCategory>
                 {
-                    BuiltInCategory.OST_StructuralFraming,
                     BuiltInCategory.OST_StructuralColumns,
                     BuiltInCategory.OST_StructuralFoundation
                 };
@@ -42,8 +41,10 @@ namespace RevitExtensions
 
                 Dictionary<string, (BoundingBoxXYZ, XYZ)> beamGroups = FindConnectedBeams(doc);
                 createViewsBasedInElementCollection(doc, beamGroups);
-
                 transaction.Commit();
+                // Create sheets for each view
+                AutomateViewsOnSheets.CreateWindowSheets(doc);
+
                 return Result.Succeeded;
 
             }
@@ -138,7 +139,7 @@ namespace RevitExtensions
 
                 XYZ facingVector = (list[0] as FamilyInstance).HandOrientation;
 
-                connectedBeamGroups.Add(list[0].Id.ToString(), (groupBoundingBox, facingVector));
+                connectedBeamGroups.Add("API_" + list[0].Id.ToString(), (groupBoundingBox, facingVector));
             }
             return connectedBeamGroups;
         }
